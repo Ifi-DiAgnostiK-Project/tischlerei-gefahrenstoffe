@@ -18,8 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COURSE_FILE: README.md
-      BUILD_ROOT: ${{ runner.temp }}/liascript-builds
-      OUTPUT_DIR: ${{ runner.temp }}/liascript-assets
+      BUILD_ROOT: /tmp/liascript-builds
+      OUTPUT_DIR: /tmp/liascript-assets
       RELEASE_TAG: latest
 
     steps:
@@ -37,6 +37,7 @@ jobs:
       - name: Generate LiaScript exports
         run: |
           set -euo pipefail
+          rm -rf "${BUILD_ROOT}" "${OUTPUT_DIR}"
           mkdir -p "${BUILD_ROOT}" "${OUTPUT_DIR}"
 
           prepare_course() {

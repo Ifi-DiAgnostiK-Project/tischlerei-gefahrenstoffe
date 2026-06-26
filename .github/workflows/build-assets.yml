@@ -20,7 +20,6 @@ jobs:
       COURSE_FILE: README.md
       OUTPUT_DIR: liascript-assets
       RELEASE_TAG: latest
-      BUNDLE_NAME: ${{ github.event.repository.name }}-liascript-assets.zip
 
     steps:
       - name: Checkout repository
@@ -45,15 +44,18 @@ jobs:
           liaex -i "${COURSE_FILE}" --format xapi --xapi-zip --output "${OUTPUT_DIR}/xapi"
           liaex -i "${COURSE_FILE}" --format pdf --output "${OUTPUT_DIR}/course" --pdf-timeout 50000
 
-          cd "${OUTPUT_DIR}"
-          zip -9 "${BUNDLE_NAME}" scorm12.zip scorm2004.zip ims.zip xapi.zip course.pdf
-          ls -lh
+          ls -lh "${OUTPUT_DIR}"
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: liascript-assets
-          path: ${{ env.OUTPUT_DIR }}/${{ env.BUNDLE_NAME }}
+          path: |
+            ${{ env.OUTPUT_DIR }}/scorm12.zip
+            ${{ env.OUTPUT_DIR }}/scorm2004.zip
+            ${{ env.OUTPUT_DIR }}/ims.zip
+            ${{ env.OUTPUT_DIR }}/xapi.zip
+            ${{ env.OUTPUT_DIR }}/course.pdf
           if-no-files-found: error
 
       - name: Publish latest release asset
@@ -68,11 +70,19 @@ jobs:
           git tag -f "${RELEASE_TAG}" "${GITHUB_SHA}"
           git push --force origin "refs/tags/${RELEASE_TAG}"
 
+          assets=(
+            "${OUTPUT_DIR}/scorm12.zip"
+            "${OUTPUT_DIR}/scorm2004.zip"
+            "${OUTPUT_DIR}/ims.zip"
+            "${OUTPUT_DIR}/xapi.zip"
+            "${OUTPUT_DIR}/course.pdf"
+          )
+
           if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
-            gh release upload "${RELEASE_TAG}" "${OUTPUT_DIR}/${BUNDLE_NAME}" --clobber
+            gh release upload "${RELEASE_TAG}" "${assets[@]}" --clobber
+            gh release delete-asset "${RELEASE_TAG}" "${GITHUB_REPOSITORY#*/}-liascript-assets.zip" -y || true
           else
-            gh release create "${RELEASE_TAG}" "${OUTPUT_DIR}/${BUNDLE_NAME}" \
+            gh release create "${RELEASE_TAG}" "${assets[@]}" \
               --title "Latest LiaScript assets" \
               --notes "Automatisch gebaut aus README.md: PDF, SCORM 1.2, SCORM 2004, IMS und xAPI."
           fi
-

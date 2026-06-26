@@ -18,7 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COURSE_FILE: README.md
-      OUTPUT_DIR: liascript-assets
+      BUILD_ROOT: ${{ runner.temp }}/liascript-builds
+      OUTPUT_DIR: ${{ runner.temp }}/liascript-assets
       RELEASE_TAG: latest
 
     steps:
@@ -36,13 +37,31 @@ jobs:
       - name: Generate LiaScript exports
         run: |
           set -euo pipefail
-          mkdir -p "${OUTPUT_DIR}"
+          mkdir -p "${BUILD_ROOT}" "${OUTPUT_DIR}"
 
-          liaex -i "${COURSE_FILE}" --format scorm1.2 --output "${OUTPUT_DIR}/scorm12"
-          liaex -i "${COURSE_FILE}" --format scorm2004 --output "${OUTPUT_DIR}/scorm2004"
-          liaex -i "${COURSE_FILE}" --format ims --output "${OUTPUT_DIR}/ims"
-          liaex -i "${COURSE_FILE}" --format xapi --xapi-zip --output "${OUTPUT_DIR}/xapi"
-          liaex -i "${COURSE_FILE}" --format pdf --output "${OUTPUT_DIR}/course" --pdf-timeout 50000
+          prepare_course() {
+            local name="$1"
+            local course_dir="${BUILD_ROOT}/${name}"
+            rm -rf "${course_dir}"
+            mkdir -p "${course_dir}"
+            git archive HEAD | tar -x -C "${course_dir}"
+            echo "${course_dir}"
+          }
+
+          course_dir="$(prepare_course scorm12)"
+          liaex -i "${course_dir}/${COURSE_FILE}" --format scorm1.2 --output "${OUTPUT_DIR}/scorm12"
+
+          course_dir="$(prepare_course scorm2004)"
+          liaex -i "${course_dir}/${COURSE_FILE}" --format scorm2004 --output "${OUTPUT_DIR}/scorm2004"
+
+          course_dir="$(prepare_course ims)"
+          liaex -i "${course_dir}/${COURSE_FILE}" --format ims --output "${OUTPUT_DIR}/ims"
+
+          course_dir="$(prepare_course xapi)"
+          liaex -i "${course_dir}/${COURSE_FILE}" --format xapi --xapi-zip --output "${OUTPUT_DIR}/xapi"
+
+          course_dir="$(prepare_course pdf)"
+          liaex -i "${course_dir}/${COURSE_FILE}" --format pdf --output "${OUTPUT_DIR}/course" --pdf-timeout 50000
 
           ls -lh "${OUTPUT_DIR}"
 
